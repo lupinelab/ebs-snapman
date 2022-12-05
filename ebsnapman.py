@@ -159,7 +159,7 @@ if not args.summary:
                     vol_name = tag['Value']
             logger.info(vol_name.upper())
             new_snap_tags = get_new_snap_tags(vol)
-            new_snap_desc = f'{period}_snapshot {vol_name}_{period}_{date_suffix} by ebsnapman script at {datetime.today().strftime("%d-%m-%Y")}'
+            new_snap_desc = f'{period}_snapshot {vol.id}_{period}_{date_suffix} by ebsnapman script at {datetime.today().strftime("%d-%m-%Y")}'
             try:
                 # # Needs testing!
                 # new_snap = vol.create_snapshot(Description=new_snap_desc, TagSpecifications=[{'Tags': new_snap_tags}])
