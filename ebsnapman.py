@@ -38,7 +38,8 @@ def summary(vol):
         if tag['Key'] == 'Name':
             vol_name = tag['Value']
     print(f'\n{vol_name.upper()}')
-    print(f'{"=" * len(vol_name)}')
+    print(f'{vol.id}')
+    print(f'{"=" * max([len(vol_name), len(vol.id)])}')
     today = datetime.today().date()
     periods = ['day', 'week', 'month']
     # the volume's snapshots
@@ -157,7 +158,7 @@ if not args.summary:
             for tag in vol.tags:
                 if tag['Key'] == 'Name':
                     vol_name = tag['Value']
-            logger.info(vol_name.upper())
+            logger.info(f'{vol_name.upper()}: {vol.id}')
             new_snap_tags = get_new_snap_tags(vol)
             new_snap_desc = f'{period}_snapshot {vol.id}_{period}_{date_suffix} by snapshot script at {datetime.today().strftime("%d-%m-%Y %H:%M:%S")}'
             try:
