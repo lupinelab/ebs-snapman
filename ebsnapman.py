@@ -58,9 +58,8 @@ def summary(vol):
                 misc_snaps[snap.id] = snap.description
             else:
                 misc_snaps[snap.id] = snap.id
-    expected_message = f'Expected snapshots for {vol_name}:'
-    print(expected_message)
-    print(f'{"-" * len(expected_message)}')
+    print(f'Managed snapshots:')
+    print(f'{"-" * 18}')
     for period in periods:
         want_snaps = []
         for i in range(config[f'keep_{period}']):
@@ -91,11 +90,10 @@ def summary(vol):
                 if period == 'month':
                     managed_snaps.pop(w_snap)
             else:
-                print(f'{w_snap}-{period}: Missing!')
+                print(f'{w_snap}-{period}: None')
     # Print remainder of managed_snaps
-    othersnapshots_message = f'\nOther snapshots for {vol_name}:'
-    print(othersnapshots_message)
-    print(f'{"-" * (len(othersnapshots_message) -1)}')
+    print(f'\nOther snapshots:')
+    print(f'{"-" * 16}')
     if len(managed_snaps) != 0:
         for snap in managed_snaps:
             print(managed_snaps[snap])
@@ -143,14 +141,13 @@ except Exception as e:
     logger.error(f'Could not connect to AWS:{e}')
     quit()
 
-
 # Find volumes to snapshot
 logger.info(f'Finding volumes that match the requested tag ({config["tag_name"].replace("tag:", "")}: {config["tag_value"]})')
 vols = conn.volumes.filter(Filters=[{'Name': f'tag:{config["tag_name"]}', 'Values': [config['tag_value']]}])
 
 # For each volume: 
 #   - make a new snapshot for the period
-#   - try to delete the snap for the period which falls 1 iteration outside of the period 
+#   - try to delete the snapshot for the period which falls 1 iteration outside of the retention window 
 if not args.summary:
     for vol in vols:
         try:
@@ -162,55 +159,69 @@ if not args.summary:
                     vol_name = tag['Value']
             logger.info(vol_name.upper())
             new_snap_tags = get_new_snap_tags(vol)
-            new_snap_desc = f'{period}_snapshot {vol.id}_{period}_{date_suffix} by ebsnapman script at {datetime.today().strftime("%d-%m-%Y")}'
+            new_snap_desc = f'{period}_snapshot {vol.id}_{period}_{date_suffix} by snapshot script at {datetime.today().strftime("%d-%m-%Y %H:%M:%S")}'
             try:
                 # # Needs testing!
                 # new_snap = vol.create_snapshot(Description=new_snap_desc, TagSpecifications=[{'Tags': new_snap_tags}])
-                logger.info(f'Snapshot created with description: {new_snap_desc} and tags: {new_snap_tags}')
+                logger.info(f'Created \'{period}\' snapshot with description: {new_snap_desc} and tags: {({tag["Key"]: tag["Value"] for tag in new_snap_tags})}')
                 total_creates += 1
             except Exception as e:
                 logger.error(e)
                 count_errors += 1
                 continue
-            # try to delete the superseeded snapshot for the period if it exists
+            # calculate which snapshot should be deleted
             today = datetime.today().date()
             if period == 'day':
-                d = today - relativedelta(days=(config['keep_day'] + 1))
+                d = today - relativedelta(days=(config['keep_day']))
                 s = d.strftime("%d-%m-%Y") 
                 delete_target = s
             elif period == 'week':
-                d = today - relativedelta(weeks=(config['keep_week'] + 1))
+                d = today - relativedelta(weeks=(config['keep_week']))
                 s = d.strftime("%d-%m-%Y")
                 delete_target = s
             elif period == 'month':
                 day_num = today.strftime("%d")
                 first_of_month = today - timedelta(days=int(day_num) - 1)
-                d = first_of_month - relativedelta(months=(config['keep_week'] + 1))
+                d = first_of_month - relativedelta(months=(config['keep_month']))
                 s = d.strftime("%d-%m-%Y") 
                 delete_target = s
             deleted = False
-            if (period == 'day' and not (datetime.strptime(delete_target, '%d-%m-%Y') - relativedelta(days=1)).strftime('%a') == config['week_start']) or (period == 'week' and not delete_target.split('-')[0] == config['week_start']):
+            # do not try to delete snapshots which cover another period, while without this check the there is
+            # no risk of deleting a snapshot that is still required, without it a warning message would be produced
+            # where no matching snapshot it found.
+            if (period == 'day'\
+                and (\
+                    (datetime.strptime(delete_target, '%d-%m-%Y') - relativedelta(days=1)).strftime('%a') != config['week_start']\
+                    or delete_target.split('-')[0] != config['month_start'])\
+                )\
+            or (period == 'week'\
+                and delete_target.split('-')[0] != config['month_start']\
+                )\
+            or period == 'month':
+                # try to delete the superseeded snapshot for the period if it exists   
                 for snap in vol.snapshots.all():
                     if snap.description.startswith(period):
                         if delete_target in snap.description:
                             try:
+                                deleted_snap_tags = snap.tags
                                 # snap.delete()
-                                logger.info(f'Deleted snapshot with description: {snap.description} and tags: {snap.tags}')
+                                logger.info(f'Deleted \'{period}\' snapshot with description: {snap.description} and tags: {({tag["Key"]: tag["Value"] for tag in deleted_snap_tags})}')
                                 total_deletes += 1
                                 deleted = True
                                 break
                             except Exception as e:
-                                logger.error(f'Could not delete snapshot {snap}: {e}')
+                                logger.error(f'Could not delete \'{period}\' snapshot {snap}: {e}')
                                 count_errors += 1
                                 break
                 if not deleted:
+                    # log a warning if the expected snapshot does not exist
                     logger.warning(f'Could not find \'{period}\' snapshot {delete_target} for {vol_name} or the snapshot could not be deleted')
                 count_success += 1
         except Exception as e:
             logger.error(e)
             count_errors += 1
 
-    logger.info(f'Finished making snapshots at {datetime.today().strftime("%d-%m-%Y %H:%M:%S")} with {count_success} snapshots of {count_total} possible.')
+    logger.info(f'Finished making snapshots at {datetime.today().strftime("%d-%m-%Y %H:%M:%S")}, {count_success}\\{count_total} volumes snapshotted.')
 
     logger.info("Total snapshots created: " + str(total_creates))
     logger.info("Total snapshots deleted: " + str(total_deletes))
