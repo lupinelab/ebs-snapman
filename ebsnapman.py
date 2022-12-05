@@ -201,7 +201,7 @@ if not args.summary:
                                 count_errors += 1
                                 break
                 if not deleted:
-                    logger.warning(f'Could not find {delete_target} \'{period}\' snapshot for {vol_name} or the snapshot could not be deleted')
+                    logger.warning(f'Could not find \'{period}\' snapshot {delete_target} for {vol_name} or the snapshot could not be deleted')
                 count_success += 1
         except Exception as e:
             logger.error(e)
