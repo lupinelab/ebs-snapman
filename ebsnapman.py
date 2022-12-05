@@ -56,7 +56,7 @@ def summary(vol):
                     if tag['Key'] == 'Name':
                         misc_snaps[snap.id] = tag['Value']
             elif snap.description != "":
-                misc_snaps[snap.id] = snap.description
+                misc_snaps[snap.id] = f'{snap.description}: {snap.id}'
             else:
                 misc_snaps[snap.id] = snap.id
     print(f'Managed snapshots:')
