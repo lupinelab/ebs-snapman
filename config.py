@@ -15,5 +15,5 @@ config = {
     'keep_month': 5,
 
     # Path to the log for this script
-    'log_file': 'ebsnapman.log',
+    'log_file': 'ebs-snapman.log',
 }

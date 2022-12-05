@@ -40,7 +40,6 @@ def summary(vol):
     print(f'\n{vol_name.upper()}')
     print(f'{vol.id}')
     print(f'{"=" * max([len(vol_name), len(vol.id)])}')
-    today = datetime.today().date()
     periods = ['day', 'week', 'month']
     # the volume's snapshots
     managed_snaps = {}
@@ -56,7 +55,7 @@ def summary(vol):
                     if tag['Key'] == 'Name':
                         misc_snaps[snap.id] = tag['Value']
             elif snap.description != "":
-                misc_snaps[snap.id] = f'{snap.description}: {snap.id}'
+                misc_snaps[snap.id] = f'{snap.description} - {snap.id}'
             else:
                 misc_snaps[snap.id] = snap.id
     print(f'Managed snapshots:')
@@ -93,15 +92,19 @@ def summary(vol):
             else:
                 print(f'{w_snap}-{period}: None')
     # Print remainder of managed_snaps
-    print(f'\nOther snapshots:')
+    print(f'\nErroneous managed snapshots:')
     print(f'{"-" * 16}')
     if len(managed_snaps) != 0:
         for snap in managed_snaps:
             print(managed_snaps[snap])
     # Print misc_snaps
+    print(f'\nOther snapshots:')
+    print(f'{"-" * 16}')
     if len(misc_snaps) != 0:
         for snap in misc_snaps:
             print(misc_snaps[snap])
+    else:
+        print('None')
 
 # Build a list of tags to give to our snapshots based on the volume's tags, this will be all tags on the volume except:
 #   - 'Name' tags (these will be modified and added to the snapshot) 
@@ -119,16 +122,29 @@ def get_new_snap_tags(vol):
                 resource_tags.append(tag)
     return resource_tags
 
-# Check which snapshot period to run for and set the date_suffix to use in tags and descriptions
+# Check which snapshot period to run for, which snapshot should be 
+# deleted and set the date_suffix to use in tags and descriptions
+today = datetime.today().date()
 if datetime.today().day == config['month_start']:
     period = 'month'
     date_suffix = datetime.today().strftime('%b')
+    day_num = today.strftime("%d")
+    first_of_month = today - timedelta(days=int(day_num) - 1)
+    d = first_of_month - relativedelta(months=(config['keep_month']))
+    s = d.strftime("%d-%m-%Y") 
+    delete_target = s
 elif datetime.today().strftime('%a') == config['week_start']:
     period = 'week'
     date_suffix = datetime.today().strftime("%U")
+    d = today - relativedelta(weeks=(config['keep_week']))
+    s = d.strftime("%d-%m-%Y")
+    delete_target = s
 else:
     period = 'day'
     date_suffix = datetime.today().strftime('%a')
+    d = today - relativedelta(days=(config['keep_day']))
+    s = d.strftime("%d-%m-%Y") 
+    delete_target = s
 
 logger.info(f'Started taking \'{period}\' snapshots')
 
@@ -137,9 +153,10 @@ logger.info(f'Started taking \'{period}\' snapshots')
 # For details see: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
 logger.info('Connecting to AWS')
 try:
-    conn = boto3.resource('ec2')
+    session = boto3.session.Session()
+    conn = session.resource('ec2')
 except Exception as e:
-    logger.error(f'Could not connect to AWS:{e}')
+    logger.error(f'Could not connect to AWS: {e}')
     quit()
 
 # Find volumes to snapshot
@@ -162,30 +179,21 @@ if not args.summary:
             new_snap_tags = get_new_snap_tags(vol)
             new_snap_desc = f'{period}_snapshot {vol.id}_{period}_{date_suffix} by snapshot script at {datetime.today().strftime("%d-%m-%Y %H:%M:%S")}'
             try:
-                # # Needs testing!
-                # new_snap = vol.create_snapshot(Description=new_snap_desc, TagSpecifications=[{'Tags': new_snap_tags}])
+                new_snap = vol.create_snapshot(
+                    Description=new_snap_desc, 
+                    TagSpecifications=[
+                        {
+                            'ResourceType': 'snapshot',
+                            'Tags': new_snap_tags
+                        }
+                    ]
+                )
                 logger.info(f'Created \'{period}\' snapshot with description: {new_snap_desc} and tags: {({tag["Key"]: tag["Value"] for tag in new_snap_tags})}')
                 total_creates += 1
             except Exception as e:
                 logger.error(e)
                 count_errors += 1
                 continue
-            # calculate which snapshot should be deleted
-            today = datetime.today().date()
-            if period == 'day':
-                d = today - relativedelta(days=(config['keep_day']))
-                s = d.strftime("%d-%m-%Y") 
-                delete_target = s
-            elif period == 'week':
-                d = today - relativedelta(weeks=(config['keep_week']))
-                s = d.strftime("%d-%m-%Y")
-                delete_target = s
-            elif period == 'month':
-                day_num = today.strftime("%d")
-                first_of_month = today - timedelta(days=int(day_num) - 1)
-                d = first_of_month - relativedelta(months=(config['keep_month']))
-                s = d.strftime("%d-%m-%Y") 
-                delete_target = s
             deleted = False
             # do not try to delete snapshots which cover another period, while without this check the there is
             # no risk of deleting a snapshot that is still required, without it a warning message would be produced
@@ -205,7 +213,7 @@ if not args.summary:
                         if delete_target in snap.description:
                             try:
                                 deleted_snap_tags = snap.tags
-                                # snap.delete()
+                                snap.delete()
                                 logger.info(f'Deleted \'{period}\' snapshot with description: {snap.description} and tags: {({tag["Key"]: tag["Value"] for tag in deleted_snap_tags})}')
                                 total_deletes += 1
                                 deleted = True
