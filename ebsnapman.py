@@ -69,7 +69,8 @@ def summary(vol):
                 s = d.strftime('%d-%m-%Y') 
                 want_snaps.append(s)
             elif period == 'week':
-                d = today - relativedelta(weeks=i)
+                latest_week_start = today - relativedelta(days=(int(today.strftime('%w'))))
+                d = latest_week_start - relativedelta(weeks=i)
                 s = d.strftime('%d-%m-%Y')
                 want_snaps.append(s)
             elif period == 'month':
@@ -86,6 +87,8 @@ def summary(vol):
                 if period == 'day' and not datetime.strptime(w_snap, '%d-%m-%Y').strftime('%a') == config['week_start']:
                     managed_snaps.pop(w_snap)
                 if period == 'week' and not datetime.strptime(w_snap, '%d-%m-%Y').strftime('%a') == config['month_start']:
+                    managed_snaps.pop(w_snap)
+                if period == 'month':
                     managed_snaps.pop(w_snap)
             else:
                 print(f'{w_snap}-{period}: Missing!')
