@@ -185,21 +185,24 @@ if not args.summary:
                 d = first_of_month - relativedelta(months=(config['keep_week'] + 1))
                 s = d.strftime("%d-%m-%Y") 
                 delete_target = s
-            for snap in vol.snapshots.all():
-                if snap.description.startswith(period):
-                    if delete_target in snap.description:
-                        try:
-                            # snap.delete()
-                            logger.info(f'Deleted snapshot with description: {snap.description} and tags: {snap.tags}')
-                            total_deletes += 1
-                        except Exception as e:
-                            logger.error(f'Could not delete snapshot {snap}: {e}')
-                            count_errors += 1
-                            continue
-                    else:
-                        logger.warning(f'No \'{period}\'snap found for {delete_target}')
-                        continue
-            count_success += 1
+            deleted = False
+            if (period == 'day' and not (datetime.strptime(delete_target, '%d-%m-%Y') - relativedelta(days=1)).strftime('%a') == config['week_start']) or (period == 'week' and not delete_target.split('-')[0] == config['week_start']):
+                for snap in vol.snapshots.all():
+                    if snap.description.startswith(period):
+                        if delete_target in snap.description:
+                            try:
+                                # snap.delete()
+                                logger.info(f'Deleted snapshot with description: {snap.description} and tags: {snap.tags}')
+                                total_deletes += 1
+                                deleted = True
+                                break
+                            except Exception as e:
+                                logger.error(f'Could not delete snapshot {snap}: {e}')
+                                count_errors += 1
+                                break
+                if not deleted:
+                    logger.warning(f'No {delete_target} \'{period}\' snapshot found for {vol_name} or the snapshot could not be deleted')
+                count_success += 1
         except Exception as e:
             logger.error(e)
             count_errors += 1
