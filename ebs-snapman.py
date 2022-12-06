@@ -146,8 +146,6 @@ else:
     s = d.strftime("%d-%m-%Y") 
     delete_target = s
 
-logger.info(f'Started taking \'{period}\' snapshots')
-
 # If no credentials are specified boto3 will look for credentials in the default locations
 # It is up to the user of this script to configure the connection ("conn") for themselves if they wish to override this behaviour
 # For details see: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
@@ -167,6 +165,7 @@ vols = conn.volumes.filter(Filters=[{'Name': f'tag:{config["tag_name"]}', 'Value
 #   - make a new snapshot for the period
 #   - try to delete the snapshot for the period which falls 1 iteration outside of the retention window 
 if not args.summary:
+    logger.info(f'Started taking \'{period}\' snapshots')
     for vol in vols:
         try:
             count_total += 1
