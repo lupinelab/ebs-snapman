@@ -212,8 +212,9 @@ if not args.summary:
                         if delete_target in snap.description:
                             try:
                                 deleted_snap_tags = snap.tags
+                                deleted_snap_description = snap.description
                                 snap.delete()
-                                logger.info(f'Deleted \'{period}\' snapshot with description: {snap.description} and tags: {({tag["Key"]: tag["Value"] for tag in deleted_snap_tags})}')
+                                logger.info(f'Deleted \'{period}\' snapshot with description: {deleted_snap_description} and tags: {({tag["Key"]: tag["Value"] for tag in deleted_snap_tags})}')
                                 total_deletes += 1
                                 deleted = True
                                 break
