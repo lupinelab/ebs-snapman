@@ -1,12 +1,12 @@
 config = {
-    # Tag of the EBS volume(s) you want to take the snapshots of
+    # Tag of the EBS volume(s) to take the snapshots of
     'tag_name': 'MakeSnapshot',
     'tag_value': 'True',
 
-    # day of the month to run monthly snapshots
+    # Day of the month to run monthly snapshots
     'month_start': 1,
 
-    # day of the week to run weekly snapshots
+    # Day of the week to run weekly snapshots
     'week_start': 'Sun',
 
     # Number of snapshots to retain
@@ -14,6 +14,6 @@ config = {
     'keep_week': 5,
     'keep_month': 5,
 
-    # Path to the log for this script
+    # Path to the log file
     'log_file': 'ebs-snapman.log',
 }
