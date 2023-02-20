@@ -90,10 +90,12 @@ def summary(vol):
                 print(f'{w_snap}-{period}: None')
     # Print remainder of managed_snaps
     print(f'\nErroneous managed snapshots:')
-    print(f'{"-" * 16}')
+    print(f'{"-" * 28}')
     if len(managed_snaps) != 0:
         for snap in managed_snaps:
             print(managed_snaps[snap])
+    else:
+        print('None')
     # Print misc_snaps
     print(f'\nOther snapshots:')
     print(f'{"-" * 16}')
