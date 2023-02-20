@@ -56,5 +56,4 @@ Jun_server01_root_vol_01-06-2022
 Other snapshots:
 ----------------
 None
-
 ```
