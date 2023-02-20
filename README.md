@@ -48,4 +48,13 @@ Managed snapshots:
 01-12-2022-month: Dec_server01_root_vol_01-12-2022
 01-11-2022-month: Nov_server01_root_vol_01-11-2022
 01-10-2022-month: Oct_server01_root_vol_01-10-2022
+
+Erroneous managed snapshots:
+----------------
+Jun_server01_root_vol_01-06-2022
+
+Other snapshots:
+----------------
+None
+
 ```
